@@ -1,0 +1,19 @@
+{
+  "name": "salonos",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"pnpm -C apps/api dev\" \"pnpm -C apps/web dev\"",
+    "build": "pnpm -C apps/api build && pnpm -C apps/web build",
+    "test": "pnpm -C apps/api test",
+    "lint": "pnpm -C apps/api lint",
+    "prisma:generate": "pnpm -C packages/db prisma:generate",
+    "prisma:migrate": "pnpm -C packages/db prisma:migrate"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

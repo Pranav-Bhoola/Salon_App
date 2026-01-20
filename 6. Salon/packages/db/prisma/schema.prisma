@@ -1,0 +1,205 @@
+// Prisma schema for SalonOS Phase 1
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OWNER
+  MANAGER
+  STAFF
+  RECEPTION
+}
+
+enum AppointmentStatus {
+  BOOKED
+  CANCELLED
+  NO_SHOW
+  COMPLETED
+}
+
+enum AppointmentSource {
+  WHATSAPP
+  VOICE
+  DASHBOARD
+  MANUAL
+}
+
+enum MessageChannel {
+  WHATSAPP
+  VOICE
+  IG
+  FACEBOOK
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users        User[]
+  staff        Staff[]
+  services     Service[]
+  clients      Client[]
+  appointments Appointment[]
+  slotHolds    SlotHold[]
+  messages     Message[]
+}
+
+model User {
+  id        String   @id @default(uuid())
+  tenantId  String
+  email     String   @unique
+  name      String
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+}
+
+model Staff {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String?
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  skills       StaffSkill[]
+  appointments Appointment[]
+  slotHolds    SlotHold[]
+
+  @@index([tenantId])
+}
+
+model StaffSkill {
+  id        String   @id @default(uuid())
+  tenantId  String
+  staffId   String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  staff Staff @relation(fields: [staffId], references: [id])
+
+  @@index([tenantId])
+  @@index([staffId])
+}
+
+model Service {
+  id              String   @id @default(uuid())
+  tenantId        String
+  name            String
+  durationMinutes Int
+  bufferMinutes   Int
+  expressEligible Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  appointments Appointment[]
+  slotHolds    SlotHold[]
+
+  @@index([tenantId])
+}
+
+model Client {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  phone     String?
+  email     String?
+  optedIn   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  appointments Appointment[]
+  slotHolds    SlotHold[]
+  messages     Message[]
+
+  @@index([tenantId])
+  @@index([phone])
+  @@index([email])
+}
+
+model Appointment {
+  id              String            @id @default(uuid())
+  tenantId        String
+  clientId        String
+  staffId         String
+  serviceId       String
+  startAt         DateTime
+  endAt           DateTime
+  status          AppointmentStatus @default(BOOKED)
+  source          AppointmentSource
+  idempotencyKey  String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  client  Client  @relation(fields: [clientId], references: [id])
+  staff   Staff   @relation(fields: [staffId], references: [id])
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, staffId, startAt])
+  @@index([tenantId, clientId])
+  @@unique([tenantId, idempotencyKey])
+}
+
+model SlotHold {
+  id        String   @id @default(uuid())
+  tenantId  String
+  staffId   String
+  clientId  String?
+  serviceId String?
+  startAt   DateTime
+  endAt     DateTime
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  staff   Staff   @relation(fields: [staffId], references: [id])
+  client  Client? @relation(fields: [clientId], references: [id])
+  service Service? @relation(fields: [serviceId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, staffId, startAt])
+  @@index([expiresAt])
+}
+
+model Message {
+  id         String           @id @default(uuid())
+  tenantId   String
+  clientId   String?
+  channel    MessageChannel
+  direction  MessageDirection
+  body       String
+  status     String
+  metadata   Json?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  client Client? @relation(fields: [clientId], references: [id])
+
+  @@index([tenantId])
+  @@index([clientId])
+}
